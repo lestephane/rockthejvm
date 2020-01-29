@@ -1,68 +1,73 @@
 package exercises
 
-import scala.collection.mutable
+import exercises.MyListSpec.{listOf, mergeSort, merge}
+
 import scala.collection.mutable.ListBuffer
 
-object MyListWork extends App {
-  abstract class MyList[+A] {
-    def head: A
-    def tail: MyList[A]
-    def isEmpty: Boolean
-    def add[B >: A](n: B): MyList[B] = Cons[B](n, this)
-    def elementsToString(): String
-    override def toString: String = '[' + elementsToString() + ']'
+abstract class MyList[+A] {
+  def head: A
+  def tail: MyList[A]
+  def isEmpty: Boolean
+  def add[B >: A](n: B): MyList[B] = Cons[B](n, this)
+  def elementsToString(): String
+  override def toString: String = '[' + elementsToString() + ']'
 
-    def map[B](trans: A => B): MyList[B]
-    def flatMap[B](trans: A => MyList[B]): MyList[B]
-    def filter(predicate: A => Boolean): MyList[A]
-    def foreach(f: A => Unit)
+  def map[B](trans: A => B): MyList[B]
+  def flatMap[B](trans: A => MyList[B]): MyList[B]
+  def filter(predicate: A => Boolean): MyList[A]
+  def foreach(f: A => Unit)
+  def sort(cmp: (A, A) => Int): MyList[A]
 
-    def ++[B >: A](other: MyList[B]): MyList[B]
+  def ++[B >: A](other: MyList[B]): MyList[B]
+}
+
+case object Empty extends MyList[Nothing] {
+  override def head: Nothing = throw new NoSuchElementException
+  override def tail: MyList[Nothing] = throw new NoSuchElementException
+  override def isEmpty: Boolean = true
+  override def elementsToString(): String = ""
+  override def ++[B >: Nothing](other: MyList[B]): MyList[B] = other
+  override def map[B](trans: Nothing => B): MyList[B] = Empty
+  override def flatMap[B](trans: Nothing => MyList[B]): MyList[B] = Empty
+  override def filter(predicate: Nothing => Boolean): MyList[Nothing] = Empty
+  override def foreach(f: Nothing => Unit): Unit = {}
+  override def sort(cmp: (Nothing, Nothing) => Int): MyList[Nothing] = Empty
+}
+
+case class Cons[A] private (h: A, t: MyList[A]) extends MyList[A] {
+  override def head: A = h
+  override def tail: MyList[A] = t
+  override def isEmpty: Boolean = false
+
+  override def elementsToString(): String = {
+    val headString = h.toString
+    val tailString = tail.elementsToString()
+    if (tailString isEmpty) headString
+    else headString + ", " + tailString
   }
 
-  case object Empty extends MyList[Nothing] {
-    override def head: Nothing = throw new NoSuchElementException
-    override def tail: MyList[Nothing] = throw new NoSuchElementException
-    override def isEmpty: Boolean = true
-    override def elementsToString(): String = ""
-    override def ++[B >: Nothing](other: MyList[B]): MyList[B] = other
-    override def map[B](trans: Nothing => B): MyList[B] = Empty
-    override def flatMap[B](trans: Nothing => MyList[B]): MyList[B] = Empty
-    override def filter(predicate: Nothing => Boolean): MyList[Nothing] = Empty
-    override def foreach(f: Nothing => Unit): Unit = {}
+  override def ++[B >: A](other: MyList[B]): MyList[B] = copy(t = tail ++ other)
+
+  override def map[B](trans: A => B): MyList[B] =
+    tail.map(trans).add(trans(head))
+
+  override def flatMap[B](trans: A => MyList[B]): MyList[B] =
+    trans(h) ++ tail.flatMap(trans)
+
+  override def filter(predicate: A => Boolean): MyList[A] =
+    if (predicate(h))
+      Cons(h, tail.filter(predicate))
+    else
+      tail.filter(predicate)
+
+  override def foreach(f: A => Unit): Unit = {
+    filter(x => { f(x); false } )
   }
 
-  case class Cons[A] private (h: A, t: MyList[A]) extends MyList[A] {
-    override def head: A = h
-    override def tail: MyList[A] = t
-    override def isEmpty: Boolean = false
+  override def sort(cmp: (A, A) => Int): MyList[A] = ???
+}
 
-    override def elementsToString(): String = {
-      val headString = h.toString
-      val tailString = tail.elementsToString()
-      if (tailString isEmpty) headString
-      else headString + ", " + tailString
-    }
-
-    override def ++[B >: A](other: MyList[B]): MyList[B] = copy(t = tail ++ other)
-
-    override def foreach(f: A => Unit): Unit = {
-      filter(x => { f(x); false } )
-    }
-
-    override def map[B](trans: A => B): MyList[B] =
-      tail.map(trans).add(trans(head))
-
-    override def flatMap[B](trans: A => MyList[B]): MyList[B] =
-      trans(h) ++ tail.flatMap(trans)
-
-    override def filter(predicate: A => Boolean): MyList[A] =
-      if (predicate(h))
-        Cons(h, tail.filter(predicate))
-      else
-        tail.filter(predicate)
-  }
-
+object MyListSpec extends App {
   def listOf[A](xs: A*): MyList[A] = xs.foldRight[MyList[A]](Empty) {
     (n, l) => Cons(n, l)
   }
@@ -105,12 +110,102 @@ object MyListWork extends App {
   assert(listOf(0, 2, 3) != listOf(1, 2, 3))
 
   // foreach method A => Unit
-  assert({ val list = new ListBuffer[Int](); Empty.foreach(list.append); list.length } == 0)
+  assert({ val list = new ListBuffer[Int](); Empty.foreach(_ => ???); list.length } == 0)
   assert({ val list = new ListBuffer[Int](); listOf(1).foreach(list.+=); list.toString() } == "ListBuffer(1)")
 
-  def fixture = () => {
-    println("hello")
-    val list = ListBuffer[Int](); listOf(1, 2).foreach(list.+=); list.toString()
+  def foreachTest(xs: Int*) = {
+    val list = ListBuffer[Int]()
+    listOf(xs: _*).foreach(list.+=)
+    list.toString()
   }
-  assert(fixture() == "ListBuffer(1, 2)", fixture())
+
+  val testForeachOnMany = () => foreachTest(1, 2)
+  assert(testForeachOnMany() == "ListBuffer(1, 2)", testForeachOnMany)
+
+  Empty.sort( (_, _) => ???)
+
+  // split() function needed by sort()
+  def splitList[A](list: MyList[A]): (MyList[A], MyList[A]) = {
+    def splitListRec(cur: MyList[A], acc1: MyList[A], acc2: MyList[A]): (MyList[A], MyList[A]) = {
+      if (cur == Empty)
+        if (acc1 == Empty) (acc2, acc1)
+        else (acc1, acc2)
+      else splitListRec(cur.tail, acc2, acc1.add(cur.head))
+    }
+    splitListRec(list, Empty, Empty)
+  }
+
+  // split() tests
+  assert(splitList(Empty) == (Empty, Empty))
+  assert(splitList(listOf(1)) == (listOf(1), Empty))
+  assert(splitList(listOf(1, 2)) == (listOf(1), listOf(2)))
+  assert(splitList(listOf(1, 2, 3)) == (listOf(2), listOf(3,1)))
+
+  // merge() function needed by sort()
+  def merge[A](xs: MyList[A], ys: MyList[A], comparator: (A, A) => Int): MyList[A] = {
+    def rmerge(acc: MyList[A], left: MyList[A], right: MyList[A]): MyList[A] =
+      if (left == Empty) acc ++ right
+      else if (right == Empty) acc ++ left
+      else {
+        val leftBeforeRight = comparator(left.head, right.head) <= 0
+        leftBeforeRight match {
+          case true => rmerge(acc ++ Cons(left.head, Empty), left.tail, right)
+          case false => rmerge(acc ++ Cons(right.head, Empty), left, right.tail)
+        }
+      }
+
+    val result = rmerge(Empty, xs, ys)
+    println(s"mergeSorted xs:$xs ys:$ys result:$result")
+    result
+  }
+
+  // sort() function
+  def mergeSort[A](xs: MyList[A], comparator: (A, A) => Int): MyList[A] = {
+    if (xs == Empty || xs.tail == Empty) xs
+    else {
+      val (left, right) = splitList(xs)
+      val leftSorted = mergeSort(left, comparator)
+      val rightSorted = mergeSort(right, comparator)
+      println(s"mergeSorted $leftSorted, $rightSorted")
+      merge(leftSorted, rightSorted, comparator)
+    }
+  }
+}
+
+// merge() tests
+object MergeTest extends App {
+  def mergeTestAsc[A](xs: MyList[A], ys: MyList[A])(implicit orderer: A => Ordered[A]) =
+    merge[A](xs, ys, _.compareTo(_))
+
+  assert(mergeTestAsc[Int](Empty, Empty) == Empty)
+  assert(mergeTestAsc[Int](listOf(1), Empty) == listOf(1))
+  assert(mergeTestAsc[Int](Empty, listOf(1)) == listOf(1))
+  assert(mergeTestAsc[Int](listOf(1), listOf(2)) == listOf(1, 2))
+  assert(mergeTestAsc[Int](listOf(2), listOf(1)) == listOf(1, 2))
+  assert(mergeTestAsc[Int](listOf(1,2), listOf(1)) == listOf(1, 1, 2))
+  assert(mergeTestAsc[Int](listOf(1), listOf(1, 2)) == listOf(1, 1, 2))
+  assert(mergeTestAsc[Int](listOf(2), listOf(1, 3)) == listOf(1, 2, 3))
+}
+
+// sort() tests
+object SortTest extends App {
+  def sortTest[A](xs: A*)(implicit orderer: A => Ordered[A]): MyList[A] = {
+    mergeSort[A](listOf[A](xs: _*), _.compareTo(_))
+  }
+
+  def sortTestDesc[A](xs: A*)(implicit orderer: A => Ordered[A]): MyList[A] = {
+    mergeSort[A](listOf[A](xs: _*), (x, y) => y.compareTo(x))
+  }
+
+  assert(sortTest[Int]() == Empty)
+  assert(sortTest[Int](1) == listOf(1))
+  assert(sortTest[Int](2, 1) == listOf(1, 2))
+  assert(sortTest[Int](2, 1, 3, 1) == listOf(1, 1, 2, 3))
+
+  // $ seq 1 10 | shuf | tr '\n' ','
+  private val sortedAsc: MyList[Int] = sortTest[Int](2,8,3,7,4,9,5,6,10,1)
+  assert(sortedAsc == listOf(1, 2, 3, 4, 5, 6, 7, 8, 9, 10), sortedAsc)
+
+  private val sortedDesc: MyList[Int] = sortTestDesc[Int](2,8,3,7,4,9,5,6,10,1)
+  assert(sortedDesc == listOf(10, 9, 8, 7, 6, 5, 4, 3, 2, 1), sortedDesc)
 }
