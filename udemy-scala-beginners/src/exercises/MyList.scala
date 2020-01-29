@@ -17,6 +17,7 @@ abstract class MyList[+A] {
   def filter(predicate: A => Boolean): MyList[A]
   def foreach(f: A => Unit)
   def sort(cmp: (A, A) => Int): MyList[A]
+  def zipWith[B >: A](ys: MyList[B], f: (B, B) => B): MyList[B]
 
   def ++[B >: A](other: MyList[B]): MyList[B]
 }
@@ -32,6 +33,7 @@ case object Empty extends MyList[Nothing] {
   override def filter(predicate: Nothing => Boolean): MyList[Nothing] = Empty
   override def foreach(f: Nothing => Unit): Unit = {}
   override def sort(cmp: (Nothing, Nothing) => Int): MyList[Nothing] = Empty
+  override def zipWith[B >: Nothing](ys: MyList[B], f: (B, B) => B): MyList[B] = Empty
 }
 
 case class Cons[A] private (h: A, t: MyList[A]) extends MyList[A] {
@@ -65,6 +67,14 @@ case class Cons[A] private (h: A, t: MyList[A]) extends MyList[A] {
   }
 
   override def sort(cmp: (A, A) => Int): MyList[A] = MergeSortOps.mergeSort(this, cmp)
+
+  override def zipWith[B >: A](ys: MyList[B], cmp: (B, B) => B): MyList[B] = {
+    def zipWithRec(acc: MyList[B], xs: MyList[B], ys: MyList[B]): MyList[B] =
+      if (xs == Empty && ys == Empty) acc
+      else zipWithRec(acc ++ Cons(cmp(xs.head, ys.head), Empty), xs.tail, ys.tail)
+
+    zipWithRec(Empty,this, ys)
+  }
 }
 
 object MergeSortOps {
@@ -211,3 +221,8 @@ object SortTest extends App {
   private val sortedDesc: MyList[Int] = sortTestDesc[Int](2,8,3,7,4,9,5,6,10,1)
   assert(sortedDesc == listOf(10, 9, 8, 7, 6, 5, 4, 3, 2, 1), sortedDesc)
 }
+
+object ZipWithTest extends App {
+  assert(listOf(1, 2, 3).zipWith(listOf(4, 5, 6), (x: Int, y: Int) => x * y) == listOf(4, 10, 18))
+}
+
