@@ -1,6 +1,6 @@
 package exercises
 
-import exercises.MyListSpec.{listOf, mergeSort, merge}
+import exercises.MyListSpec.{listOf}
 
 import scala.collection.mutable.ListBuffer
 
@@ -64,7 +64,45 @@ case class Cons[A] private (h: A, t: MyList[A]) extends MyList[A] {
     filter(x => { f(x); false } )
   }
 
-  override def sort(cmp: (A, A) => Int): MyList[A] = ???
+  override def sort(cmp: (A, A) => Int): MyList[A] = MergeSortOps.mergeSort(this, cmp)
+}
+
+object MergeSortOps {
+  def mergeSort[A](xs: MyList[A], comparator: (A, A) => Int): MyList[A] = {
+    if (xs == Empty || xs.tail == Empty) xs
+    else {
+      val (left, right) = splitList(xs)
+      val leftSorted = mergeSort(left, comparator)
+      val rightSorted = mergeSort(right, comparator)
+      merge(leftSorted, rightSorted, comparator)
+    }
+  }
+
+  // split() function needed by sort()
+  def splitList[A](list: MyList[A]): (MyList[A], MyList[A]) = {
+    def splitListRec(cur: MyList[A], acc1: MyList[A], acc2: MyList[A]): (MyList[A], MyList[A]) = {
+      if (cur == Empty)
+        if (acc1 == Empty) (acc2, acc1)
+        else (acc1, acc2)
+      else splitListRec(cur.tail, acc2, acc1.add(cur.head))
+    }
+    splitListRec(list, Empty, Empty)
+  }
+
+  def merge[A](xs: MyList[A], ys: MyList[A], comparator: (A, A) => Int): MyList[A] = {
+    def rmerge(acc: MyList[A], left: MyList[A], right: MyList[A]): MyList[A] =
+      if (left == Empty) acc ++ right
+      else if (right == Empty) acc ++ left
+      else {
+        val leftBeforeRight = comparator(left.head, right.head) <= 0
+        leftBeforeRight match {
+          case true => rmerge(acc ++ Cons(left.head, Empty), left.tail, right)
+          case false => rmerge(acc ++ Cons(right.head, Empty), left, right.tail)
+        }
+      }
+
+    rmerge(Empty, xs, ys)
+  }
 }
 
 object MyListSpec extends App {
@@ -110,8 +148,12 @@ object MyListSpec extends App {
   assert(listOf(0, 2, 3) != listOf(1, 2, 3))
 
   // foreach method A => Unit
-  assert({ val list = new ListBuffer[Int](); Empty.foreach(_ => ???); list.length } == 0)
-  assert({ val list = new ListBuffer[Int](); listOf(1).foreach(list.+=); list.toString() } == "ListBuffer(1)")
+  assert({
+    val list = new ListBuffer[Int](); Empty.foreach(_ => ???); list.length
+  } == 0)
+  assert({
+    val list = new ListBuffer[Int](); listOf(1).foreach(list.+=); list.toString()
+  } == "ListBuffer(1)")
 
   def foreachTest(xs: Int*) = {
     val list = ListBuffer[Int]()
@@ -121,61 +163,20 @@ object MyListSpec extends App {
 
   val testForeachOnMany = () => foreachTest(1, 2)
   assert(testForeachOnMany() == "ListBuffer(1, 2)", testForeachOnMany)
+}
 
-  Empty.sort( (_, _) => ???)
-
-  // split() function needed by sort()
-  def splitList[A](list: MyList[A]): (MyList[A], MyList[A]) = {
-    def splitListRec(cur: MyList[A], acc1: MyList[A], acc2: MyList[A]): (MyList[A], MyList[A]) = {
-      if (cur == Empty)
-        if (acc1 == Empty) (acc2, acc1)
-        else (acc1, acc2)
-      else splitListRec(cur.tail, acc2, acc1.add(cur.head))
-    }
-    splitListRec(list, Empty, Empty)
-  }
-
+object ForeachTest extends App {
   // split() tests
-  assert(splitList(Empty) == (Empty, Empty))
-  assert(splitList(listOf(1)) == (listOf(1), Empty))
-  assert(splitList(listOf(1, 2)) == (listOf(1), listOf(2)))
-  assert(splitList(listOf(1, 2, 3)) == (listOf(2), listOf(3,1)))
-
-  // merge() function needed by sort()
-  def merge[A](xs: MyList[A], ys: MyList[A], comparator: (A, A) => Int): MyList[A] = {
-    def rmerge(acc: MyList[A], left: MyList[A], right: MyList[A]): MyList[A] =
-      if (left == Empty) acc ++ right
-      else if (right == Empty) acc ++ left
-      else {
-        val leftBeforeRight = comparator(left.head, right.head) <= 0
-        leftBeforeRight match {
-          case true => rmerge(acc ++ Cons(left.head, Empty), left.tail, right)
-          case false => rmerge(acc ++ Cons(right.head, Empty), left, right.tail)
-        }
-      }
-
-    val result = rmerge(Empty, xs, ys)
-    println(s"mergeSorted xs:$xs ys:$ys result:$result")
-    result
-  }
-
-  // sort() function
-  def mergeSort[A](xs: MyList[A], comparator: (A, A) => Int): MyList[A] = {
-    if (xs == Empty || xs.tail == Empty) xs
-    else {
-      val (left, right) = splitList(xs)
-      val leftSorted = mergeSort(left, comparator)
-      val rightSorted = mergeSort(right, comparator)
-      println(s"mergeSorted $leftSorted, $rightSorted")
-      merge(leftSorted, rightSorted, comparator)
-    }
-  }
+  assert(MergeSortOps.splitList(Empty) == (Empty, Empty))
+  assert(MergeSortOps.splitList(listOf(1)) == (listOf(1), Empty))
+  assert(MergeSortOps.splitList(listOf(1, 2)) == (listOf(1), listOf(2)))
+  assert(MergeSortOps.splitList(listOf(1, 2, 3)) == (listOf(2), listOf(3,1)))
 }
 
 // merge() tests
 object MergeTest extends App {
   def mergeTestAsc[A](xs: MyList[A], ys: MyList[A])(implicit orderer: A => Ordered[A]) =
-    merge[A](xs, ys, _.compareTo(_))
+    MergeSortOps.merge[A](xs, ys, _.compareTo(_))
 
   assert(mergeTestAsc[Int](Empty, Empty) == Empty)
   assert(mergeTestAsc[Int](listOf(1), Empty) == listOf(1))
@@ -190,13 +191,14 @@ object MergeTest extends App {
 // sort() tests
 object SortTest extends App {
   def sortTest[A](xs: A*)(implicit orderer: A => Ordered[A]): MyList[A] = {
-    mergeSort[A](listOf[A](xs: _*), _.compareTo(_))
+    listOf[A](xs: _*).sort(_.compareTo(_))
   }
 
   def sortTestDesc[A](xs: A*)(implicit orderer: A => Ordered[A]): MyList[A] = {
-    mergeSort[A](listOf[A](xs: _*), (x, y) => y.compareTo(x))
+    listOf[A](xs: _*).sort((x, y) => y.compareTo(x))
   }
 
+  assert(Empty.sort((_,_) => 0) == Empty)
   assert(sortTest[Int]() == Empty)
   assert(sortTest[Int](1) == listOf(1))
   assert(sortTest[Int](2, 1) == listOf(1, 2))
