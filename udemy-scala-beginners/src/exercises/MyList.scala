@@ -10,16 +10,15 @@ abstract class MyList[+A] {
   def isEmpty: Boolean
   def add[B >: A](n: B): MyList[B] = Cons[B](n, this)
   def elementsToString(): String
-  override def toString: String = '[' + elementsToString() + ']'
-
+  def ++[B >: A](other: MyList[B]): MyList[B]
   def map[B](trans: A => B): MyList[B]
   def flatMap[B](trans: A => MyList[B]): MyList[B]
   def filter(predicate: A => Boolean): MyList[A]
   def foreach(f: A => Unit)
-  def sort(cmp: (A, A) => Int): MyList[A]
+  def sort[B >: A](cmp: (B, B) => Int): MyList[B]
   def zipWith[B >: A](ys: MyList[B], f: (B, B) => B): MyList[B]
-
-  def ++[B >: A](other: MyList[B]): MyList[B]
+  def fold[B >: A](start: B, folder: (B, B) => B): B
+  override def toString: String = '[' + elementsToString() + ']'
 }
 
 case object Empty extends MyList[Nothing] {
@@ -32,8 +31,9 @@ case object Empty extends MyList[Nothing] {
   override def flatMap[B](trans: Nothing => MyList[B]): MyList[B] = Empty
   override def filter(predicate: Nothing => Boolean): MyList[Nothing] = Empty
   override def foreach(f: Nothing => Unit): Unit = {}
-  override def sort(cmp: (Nothing, Nothing) => Int): MyList[Nothing] = Empty
-  override def zipWith[B >: Nothing](ys: MyList[B], f: (B, B) => B): MyList[B] = Empty
+  override def sort[B >: Nothing](cmp: (B, B) => Int): MyList[B] = Empty
+  override def zipWith[B >:Nothing](ys: MyList[B], f: (B, B) => B): MyList[B] = Empty
+  override def fold[B >: Nothing](start: B, folder: (B, B) => B): B = start
 }
 
 case class Cons[A] private (h: A, t: MyList[A]) extends MyList[A] {
@@ -66,7 +66,7 @@ case class Cons[A] private (h: A, t: MyList[A]) extends MyList[A] {
     filter(x => { f(x); false } )
   }
 
-  override def sort(cmp: (A, A) => Int): MyList[A] = MergeSortOps.mergeSort(this, cmp)
+  override def sort[B >:A](cmp: (B, B) => Int): MyList[B] = MergeSortOps.mergeSort(this, cmp)
 
   override def zipWith[B >: A](ys: MyList[B], cmp: (B, B) => B): MyList[B] = {
     def zipWithRec(acc: MyList[B], xs: MyList[B], ys: MyList[B]): MyList[B] =
@@ -74,6 +74,13 @@ case class Cons[A] private (h: A, t: MyList[A]) extends MyList[A] {
       else zipWithRec(acc ++ Cons(cmp(xs.head, ys.head), Empty), xs.tail, ys.tail)
 
     zipWithRec(Empty,this, ys)
+  }
+
+  override def fold[B >: A](start: B, folder: (B, B) => B): B = {
+    def foldRec(xsRemain: MyList[B], acc: B): B =
+      if (xsRemain == Empty) acc
+      else foldRec(xsRemain.tail, folder(acc, xsRemain.head))
+    foldRec(this, start)
   }
 }
 
@@ -110,7 +117,6 @@ object MergeSortOps {
           case false => rmerge(acc ++ Cons(right.head, Empty), left, right.tail)
         }
       }
-
     rmerge(Empty, xs, ys)
   }
 }
@@ -201,14 +207,14 @@ object MergeTest extends App {
 // sort() tests
 object SortTest extends App {
   def sortTest[A](xs: A*)(implicit orderer: A => Ordered[A]): MyList[A] = {
-    listOf[A](xs: _*).sort(_.compareTo(_))
+    listOf(xs: _*).sort(_.compareTo(_))
   }
 
   def sortTestDesc[A](xs: A*)(implicit orderer: A => Ordered[A]): MyList[A] = {
-    listOf[A](xs: _*).sort((x, y) => y.compareTo(x))
+    listOf(xs: _*).sort((x, y) => y.compareTo(x))
   }
 
-  assert(Empty.sort((_,_) => 0) == Empty)
+  assert(Empty.sort((_: Any, _: Any) => 0) == Empty)
   assert(sortTest[Int]() == Empty)
   assert(sortTest[Int](1) == listOf(1))
   assert(sortTest[Int](2, 1) == listOf(1, 2))
@@ -226,3 +232,7 @@ object ZipWithTest extends App {
   assert(listOf(1, 2, 3).zipWith(listOf(4, 5, 6), (x: Int, y: Int) => x * y) == listOf(4, 10, 18))
 }
 
+object FoldTest extends App {
+  assert(listOf(1, 2, 3).fold(0, (x: Int, y: Int) => x + y) == 6)
+  assert(listOf(3, 3).fold(1, (x: Int, y: Int) => x * y) == 9)
+}
