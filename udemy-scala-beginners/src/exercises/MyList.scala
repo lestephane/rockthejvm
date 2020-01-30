@@ -1,6 +1,6 @@
 package exercises
 
-import exercises.MyListSpec.{listOf}
+import exercises.MyListTest.{listOf}
 
 import scala.collection.mutable.ListBuffer
 
@@ -16,8 +16,8 @@ abstract class MyList[+A] {
   def filter(predicate: A => Boolean): MyList[A]
   def foreach(f: A => Unit)
   def sort[B >: A](cmp: (B, B) => Int): MyList[B]
-  def zipWith[B >: A](ys: MyList[B], f: (B, B) => B): MyList[B]
-  def fold[B >: A](start: B, folder: (B, B) => B): B
+  def zipWith[B,C](ys: MyList[B], f: (A, B) => C): MyList[C]
+  def fold[B >: A](start: B)(operator: (B, B) => B): B
   override def toString: String = '[' + elementsToString() + ']'
 }
 
@@ -30,10 +30,12 @@ case object Empty extends MyList[Nothing] {
   override def map[B](trans: Nothing => B): MyList[B] = Empty
   override def flatMap[B](trans: Nothing => MyList[B]): MyList[B] = Empty
   override def filter(predicate: Nothing => Boolean): MyList[Nothing] = Empty
-  override def foreach(f: Nothing => Unit): Unit = {}
+  override def foreach(f: Nothing => Unit): Unit = ()
   override def sort[B >: Nothing](cmp: (B, B) => Int): MyList[B] = Empty
-  override def zipWith[B >:Nothing](ys: MyList[B], f: (B, B) => B): MyList[B] = Empty
-  override def fold[B >: Nothing](start: B, folder: (B, B) => B): B = start
+  override def zipWith[B, C](ys: MyList[B], f: (Nothing, B) => C): MyList[C] = {
+    assert(ys.isEmpty, "Empty.zipWith() attempted with another non-empty list"); Empty
+  }
+  override def fold[B >: Nothing](start: B)(operator: (B, B) => B): B = start
 }
 
 case class Cons[A] private (h: A, t: MyList[A]) extends MyList[A] {
@@ -63,25 +65,18 @@ case class Cons[A] private (h: A, t: MyList[A]) extends MyList[A] {
       tail.filter(predicate)
 
   override def foreach(f: A => Unit): Unit = {
-    filter(x => { f(x); false } )
+    f(head)
+    tail.foreach(f)
   }
 
   override def sort[B >:A](cmp: (B, B) => Int): MyList[B] = MergeSortOps.mergeSort(this, cmp)
 
-  override def zipWith[B >: A](ys: MyList[B], cmp: (B, B) => B): MyList[B] = {
-    def zipWithRec(acc: MyList[B], xs: MyList[B], ys: MyList[B]): MyList[B] =
-      if (xs == Empty && ys == Empty) acc
-      else zipWithRec(acc ++ Cons(cmp(xs.head, ys.head), Empty), xs.tail, ys.tail)
+  override def zipWith[B,C](ys: MyList[B], zip: (A, B) => C): MyList[C] =
+    if (ys.isEmpty) Empty
+    else Cons(zip(head, ys.head), t.zipWith(ys.tail, zip))
 
-    zipWithRec(Empty,this, ys)
-  }
-
-  override def fold[B >: A](start: B, folder: (B, B) => B): B = {
-    def foldRec(xsRemain: MyList[B], acc: B): B =
-      if (xsRemain == Empty) acc
-      else foldRec(xsRemain.tail, folder(acc, xsRemain.head))
-    foldRec(this, start)
-  }
+  override def fold[B >: A](start: B)(operator: (B, B) => B): B =
+    t.fold(operator(start, h))(operator)
 }
 
 object MergeSortOps {
@@ -121,7 +116,7 @@ object MergeSortOps {
   }
 }
 
-object MyListSpec extends App {
+object MyListTest extends App {
   def listOf[A](xs: A*): MyList[A] = xs.foldRight[MyList[A]](Empty) {
     (n, l) => Cons(n, l)
   }
@@ -168,9 +163,13 @@ object MyListSpec extends App {
     val list = new ListBuffer[Int](); Empty.foreach(_ => ???); list.length
   } == 0)
   assert({
-    val list = new ListBuffer[Int](); listOf(1).foreach(list.+=); list.toString()
+    val list = new ListBuffer[Int]();
+    listOf(1).foreach(list.+=);
+    list.toString()
   } == "ListBuffer(1)")
+}
 
+object ForeachTest extends App {
   def foreachTest(xs: Int*) = {
     val list = ListBuffer[Int]()
     listOf(xs: _*).foreach(list.+=)
@@ -181,7 +180,7 @@ object MyListSpec extends App {
   assert(testForeachOnMany() == "ListBuffer(1, 2)", testForeachOnMany)
 }
 
-object ForeachTest extends App {
+object SplitTest extends App {
   // split() tests
   assert(MergeSortOps.splitList(Empty) == (Empty, Empty))
   assert(MergeSortOps.splitList(listOf(1)) == (listOf(1), Empty))
@@ -230,9 +229,10 @@ object SortTest extends App {
 
 object ZipWithTest extends App {
   assert(listOf(1, 2, 3).zipWith(listOf(4, 5, 6), (x: Int, y: Int) => x * y) == listOf(4, 10, 18))
+  assert(listOf(1, 2, 3).zipWith(listOf('a', 'b', 'c'), (x: Int, y: Char) => y.toString * x) == listOf("a", "bb", "ccc"))
 }
 
 object FoldTest extends App {
-  assert(listOf(1, 2, 3).fold(0, (x: Int, y: Int) => x + y) == 6)
-  assert(listOf(3, 3).fold(1, (x: Int, y: Int) => x * y) == 9)
+  assert(listOf(1, 2, 3).fold(0)((x: Int, y: Int) => x + y) == 6)
+  assert(listOf(3, 3).fold(1)((x: Int, y: Int) => x * y) == 9)
 }
