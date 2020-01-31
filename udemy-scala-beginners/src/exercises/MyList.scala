@@ -236,3 +236,13 @@ object FoldTest extends App {
   assert(listOf(1, 2, 3).fold(0)((x: Int, y: Int) => x + y) == 6)
   assert(listOf(3, 3).fold(1)((x: Int, y: Int) => x * y) == 9)
 }
+
+object ForTest extends App {
+  val numbers = listOf(1, 2)
+  val chars = listOf('a', 'b')
+  val result = for {
+    i <- chars
+    j <- numbers
+  } yield "" + i + j
+  assert(result == listOf("a1", "a2", "b1", "b2"), result)
+}
