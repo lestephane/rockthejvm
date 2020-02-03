@@ -1,7 +1,5 @@
 package lectures.part3fp
 
-import exercises.MyListTest.listOf
-import exercises.{Cons, MyList}
 import lectures.part3fp.MapFlatmapFilterFor.combine
 
 object MapFlatmapFilterFor {

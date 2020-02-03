@@ -9,6 +9,7 @@ object AllTests extends App {
   FoldTest.main(noargs)
   ForeachTest.main(noargs)
   ForTest.main(noargs)
+  MaybeTest.main(noargs)
   MergeTest.main(noargs)
   MyListTest.main(noargs)
   SortTest.main(noargs)
