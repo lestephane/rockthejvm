@@ -12,6 +12,7 @@ object AllTests extends App {
   MaybeTest.main(noargs)
   MergeTest.main(noargs)
   MyListTest.main(noargs)
+  SocialNetworkTest.main(noargs)
   SortTest.main(noargs)
   SplitTest.main(noargs)
   ZipWithTest.main(noargs)
