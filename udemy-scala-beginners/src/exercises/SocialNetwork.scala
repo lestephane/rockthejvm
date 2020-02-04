@@ -1,5 +1,16 @@
 package exercises
 
+// NOTE: this class uses a mix of oop and fp, which is not ideal
+// it will need a rewrite to use only side-effect free functions.
+// I will do this once I know how to avoid using Map[String,Set[String]]
+// everywhere. Something like
+//
+// object SocialDefs {
+//   type Person = String
+//   type Friends = Set[Person]
+//   type Network = Map[Person, Friends]
+// }
+
 class SocialNetwork {
   var root: Map[String,Set[String]] = Map().withDefault(name => Set())
 
@@ -9,6 +20,7 @@ class SocialNetwork {
   }
 
   def remove(name: String) = {
+    // NOTE: my version is less FP and less efficient than the instructor, it won't scale to millions of users
     root = (root.mapValues((friends: Set[String]) => friends - name) - name).withDefault(_ => Set())
     this
   }
