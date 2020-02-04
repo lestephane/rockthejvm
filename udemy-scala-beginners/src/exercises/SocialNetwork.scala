@@ -36,9 +36,9 @@ class SocialNetwork {
 
   def friendCount(name: String): Int = root(name).size
 
-  def mostFriended(): String = root.maxBy((person: (String, Set[String])) => person._2.size)._1
+  def mostFriended(): String = root.maxBy(_._2.size)._1
 
-  def notFriendedCount(): Int = root.count((person: (String, Set[String])) => person._2.isEmpty)
+  def notFriendedCount(): Int = root.count(_._2.isEmpty)
 
   def connected(start: String, end: String): Boolean = {
     def connectedRec(friends: Set[String], seen: Set[String]): Boolean =
