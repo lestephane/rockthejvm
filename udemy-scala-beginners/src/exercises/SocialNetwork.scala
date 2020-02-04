@@ -4,22 +4,22 @@ class SocialNetwork {
   var root: Map[String,Set[String]] = Map().withDefault(name => Set())
 
   def add(name: String) = {
-    root = root.updated(name, root(name))
+    root = root + (name -> root(name))
     this
   }
 
   def remove(name: String) = {
-    root = root - name
+    root = (root.mapValues((friends: Set[String]) => friends - name) - name).withDefault(_ => Set())
     this
   }
 
   def friend(name1: String, name2: String) = {
-    root = root.updated(name1, root(name1) + name2).updated(name2, root(name2) + name1)
+    root = root + (name1 -> (root(name1) + name2)) + (name2 -> (root(name2) + name1))
     this
   }
 
   def unfriend(name1: String, name2: String): Unit = {
-    root = root.updated(name1, root(name1) - name2).updated(name2, root(name2) - name1)
+    root = root + (name1 -> (root(name1) - name2)) + (name2 -> (root(name2) - name1))
   }
 
   def friendCount(name: String): Int = root(name).size
@@ -29,7 +29,6 @@ class SocialNetwork {
   def notFriendedCount(): Int = root.count((person: (String, Set[String])) => person._2.isEmpty)
 
   def connected(start: String, end: String): Boolean = {
-    // TODO: Add seen set to avoid infinite recursion for cyclic indirect connections
     def connectedRec(friends: Set[String], seen: Set[String]): Boolean =
       if (friends.isEmpty) false
       else if (friends.contains(end)) true
@@ -78,4 +77,6 @@ object SocialNetworkTest extends App {
   // John -> Jane -> Jean -> John
   // Joe
   assert(!net.connected("John", "Joe"))
+
+  assert(!net.remove("John").connected("Jane", "John"))
 }
