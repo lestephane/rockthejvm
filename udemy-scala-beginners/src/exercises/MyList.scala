@@ -46,7 +46,7 @@ case class Cons[A] private (h: A, t: MyList[A]) extends MyList[A] {
   override def elementsToString(): String = {
     val headString = h.toString
     val tailString = tail.elementsToString()
-    if (tailString isEmpty) headString
+    if (tailString.isEmpty) headString
     else headString + ", " + tailString
   }
 

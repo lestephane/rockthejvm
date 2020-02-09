@@ -1,5 +1,0 @@
-package exercises
-
-class FileSystem {
-
-}
